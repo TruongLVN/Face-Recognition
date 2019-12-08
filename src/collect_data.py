@@ -47,7 +47,7 @@ if __name__ == "__main__":
         sys.exit("Invalid name ID!!!")
         
     # Check the existance
-    folder = os.path.join("pre_dataset/raw_dataset", name_id)
+    folder = os.path.join("../pre_dataset/raw_dataset", name_id)
     if not os.path.exists(folder):
         os.makedirs(folder)
         save_id = 0
@@ -90,11 +90,11 @@ if __name__ == "__main__":
         img = draw_face_locations(frame, face_locs)
     
         # Show the frame
-        cv2.imshow('Webcam', img)
+        cv2.imshow('Please change face direction', img)
         if cv2.waitKey(1) & 0xFF == ord('q') or count > 50:
             break
     
-         # Save the frame in automatic mode
+         # Save the frame
         if (blurness == False) and (len(face_locs)==1):
             filename = os.path.join(folder, "%s_%d.png" % (name_id, save_id))
             cv2.imwrite(filename, frame)
@@ -104,39 +104,4 @@ if __name__ == "__main__":
             print("--------------------------------------------------------\n")
     cap.release()
     cv2.destroyAllWindows()
-    
-    
-
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
-    
     
