@@ -79,9 +79,9 @@ def save_feature(path, embs, labels):
 
 if __name__=="__main__":
 	model_path = "../model/20180402-114759/20180402-114759.pb"			# change following your dir
-	train_dir = "../raw_dataset/dataset/trainset"						# change following your dir
-	valid_dir = "../raw_dataset/dataset/validdir"
-	test_dir = "../raw_dataset/dataset/testset"
+	train_dir = "../dataset/split_dataset/trainset"						# change following your dir
+	valid_dir = "../dataset/split_dataset/validset"
+	test_dir = "../dataset/split_dataset/testset"
 	# get dataset
 	trainset = facenet.get_dataset(train_dir)
 	validset = facenet.get_dataset(valid_dir)
@@ -94,12 +94,12 @@ if __name__=="__main__":
 	emb_valids, valid_labels = feature_extraction(validset, model_path, batch_size, image_size)
 	emb_tests, test_labels = feature_extraction(testset, model_path, batch_size, image_size)
 	# Save feature, labels and override old data 
-	save_feature("../raw_dataset/dataset/testset", emb_trains, train_labels)
-	save_feature("../raw_dataset/dataset/testset", emb_valids, valid_labels)
-	save_feature("../raw_dataset/dataset/testset", emb_tests, test_labels)
+	save_feature("../dataset/feature_labels/train_emb.dat", emb_trains, train_labels)
+	save_feature("../dataset/feature_labels/valid_emb.dat", emb_valids, valid_labels)
+	save_feature("../dataset/feature_labels/test_emb.dat", emb_tests, test_labels)
 
 
 	print("success")
 	print(train_labels)
 	print(".................................")
-	print(emb_train.shape)
+	print(emb_trains.shape)
