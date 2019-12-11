@@ -8,7 +8,8 @@ import random
 from time import sleep
 
 class PreProcessor:
-    def __init__(self, image_size=182 , margin=44, random_order=True, gpu_memory_fraction=0.5, detect_multiple_faces=False, model_path=None):
+    def __init__(self, image_size=182 , margin=44, random_order=True, gpu_memory_fraction=0.5, 
+                detect_multiple_faces=False, model_path=None):
         # minimum size of faces 
         self.minsize = 20 
         # three step's threshold of mtcnn
@@ -25,9 +26,8 @@ class PreProcessor:
         print('Creating networks and loading parameters')
         with tf.Graph().as_default():
             gpu_options = tf.compat.v1.GPUOptions(per_process_gpu_memory_fraction=self.gpu_memory_fraction)
-            print("------------------------------------------------")
-            self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
-            print("------------------------------------------------")
+            self.sess = tf.compat.v1.Session(config=tf.compat.v1.ConfigProto(gpu_options=gpu_options, 
+                                                                            log_device_placement=False))
             with self.sess.as_default():
                 self.pnet, self.rnet, self.onet = detect_face.create_mtcnn(self.sess, model_path)
     
@@ -70,9 +70,7 @@ class PreProcessor:
                                 continue
                             if img.ndim == 2:
                                 img = facenet.to_rgb(img)
-                            print('to_rgb data dimension: ', img.ndim)
                             img = img[:,:,0:3]
-
                             bounding_boxes, _ = detect_face.detect_face(img, self.minsize, self.pnet, self.rnet, 
                             												self.onet, self.threshold, self.factor)
                             nrof_faces = bounding_boxes.shape[0]
@@ -88,7 +86,7 @@ class PreProcessor:
                                     else:
                                         bounding_box_size = (det[:,2]-det[:,0])*(det[:,3]-det[:,1])
                                         img_center = img_size / 2
-                                        offsets = np.vstack([ (det[:,0]+det[:,2])/2-img_center[1], (det[:,1]+det[:,3])/2-img_center[0] ])
+                                        offsets = np.vstack([(det[:,0]+det[:,2])/2-img_center[1], (det[:,1]+det[:,3])/2-img_center[0]])
                                         offset_dist_squared = np.sum(np.power(offsets,2.0),0)
                                         index = np.argmax(bounding_box_size-offset_dist_squared*2.0) # some extra weight on the centering
                                         det_arr.append(det[index,:])
@@ -118,7 +116,5 @@ class PreProcessor:
         print('Number of successfully aligned images: %d' % nrof_successfully_aligned)
 
 if __name__ == "__main__":
-	print("213")
-	aligner = PreProcessor(model_path="../mtcnn")
-	print("OK con de")
-	aligner.align("../pre_dataset/raw_dataset", "../pre_dataset/aligned_dataset")
+	aligner = PreProcessor(model_path="../model/mtcnn")
+	aligner.align("../dataset/raw_dataset", "../dataset/aligned_dataset")

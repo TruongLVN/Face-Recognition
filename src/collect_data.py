@@ -8,24 +8,6 @@ import cv2
 import numpy as np
 from face_recognition import face_locations
 
-# Draw face location
-def draw_face_locations(img, face_locs):
-    len_locs = len(face_locs)
-    img_new = np.array(img)
-    if len_locs:
-        cl_blue = (255, 0, 0)
-        i = 0
-        for (x,y,w,h) in face_locs:
-            print ("x = ",x)
-            print ("y = ",y)
-            print ("w = ",w)
-            print ("h = ",h)
-            c1 = (h, x)
-            c2 = (y, w)
-            cv2.rectangle(img_new, c1, c2, cl_blue, 3)
-            i += 1
-    return img_new
-
 # Detect blured images
 def detect_blur(img, thresh=None):
     n_channels = img.shape[2]
@@ -38,8 +20,7 @@ def detect_blur(img, thresh=None):
         return var
     else:
         return True if var < thresh else False, var
-    
-    
+
 if __name__ == "__main__":
     name_id = input(">> Enter your ID: ")
     # Invalid syntax
@@ -47,7 +28,7 @@ if __name__ == "__main__":
         sys.exit("Invalid name ID!!!")
         
     # Check the existance
-    folder = os.path.join("../pre_dataset/raw_dataset", name_id)
+    folder = os.path.join("../dataset/raw_dataset", name_id)
     if not os.path.exists(folder):
         os.makedirs(folder)
         save_id = 0
@@ -60,6 +41,7 @@ if __name__ == "__main__":
     #.................................................        
     print("Wait for calibrating the blurness...")
     cap = cv2.VideoCapture(0)
+    # 
     frames = []
     for i in range(50):
         _, frame = cap.read()
@@ -70,6 +52,7 @@ if __name__ == "__main__":
     blurness_vars = pools.map(detect_blur, frames)
     
     blurness_thres = sum(blurness_vars) / len(blurness_vars) * 0.90
+    
     print("Finish calibrating the blurness: %f", blurness_thres)
     print("--------------------------------------------------------\n")
     
@@ -77,25 +60,34 @@ if __name__ == "__main__":
     count = 0
     while(cap.isOpened()):
         # Read frame
-    
         _, frame = cap.read()
         print("[FrameID %d] " % frame_idx)
         frame_idx += 1
     
         # Detect blur
-        blurness, var = detect_blur(frame, blurness_thres)
+        is_blur, var = detect_blur(frame, blurness_thres)
     
         # Detect and draw face
         face_locs = face_locations(frame)
-        img = draw_face_locations(frame, face_locs)
-    
-        # Show the frame
+
+        # Box face
+        len_locs = len(face_locs)
+        img = np.array(frame)
+        if len_locs:
+            color_blue = (255, 0, 0)
+            for (top, right, bottom, left) in face_locs:
+                start_point = (left, top)
+                end_point = (right, bottom)
+                cv2.rectangle(img, start_point, end_point, color_blue, 3)
+
+        # Show the image
         cv2.imshow('Please change face direction', img)
-        if cv2.waitKey(1) & 0xFF == ord('q') or count > 50:
+        if cv2.waitKey(1) & 0xFF == ord('q') or count > 100:
             break
     
          # Save the frame
-        if (blurness == False) and (len(face_locs)==1):
+        is_multi_face = False
+        if (is_blur == False) and (len(face_locs)==1 or is_multi_face):
             filename = os.path.join(folder, "%s_%d.png" % (name_id, save_id))
             cv2.imwrite(filename, frame)
             save_id += 1
@@ -104,4 +96,3 @@ if __name__ == "__main__":
             print("--------------------------------------------------------\n")
     cap.release()
     cv2.destroyAllWindows()
-    

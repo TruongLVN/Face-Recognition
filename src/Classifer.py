@@ -5,17 +5,17 @@ import os
 import sys
 import math
 import pickle
+import scipy.io as sio
 from sklearn.svm import SVC
 
 
-def feature_extraction(data_dir, model_path, batch_size, image_size):
+def feature_extraction(dataset, model_path, batch_size, image_size):
 	with tf.Graph().as_default():
 		gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
 		sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
 		with tf.Session() as sess:
 			
 			# Check that there are at least one training image per class
-			dataset = facenet.get_dataset(data_dir)
 			for cls in dataset:
 				assert(len(cls.image_paths)>0, 'There must be at least one image for each class in the dataset')
 
@@ -51,18 +51,55 @@ def feature_extraction(data_dir, model_path, batch_size, image_size):
 			    emb_array[start_index:end_index,:] = sess.run(embeddings, feed_dict=feed_dict)
 			return  emb_array, labels
 
+def train_svm(dataset, emb_trains, train_labels, emb_valids, valid_labels,path_svm):
+
+	print('Training classifier')
+
+	model = SVC(kernel='linear', probability=True)
+	model.fit(emb_array, labels)
+
+	# Evaluate model
+	predict = model.predict(emb_valids)
+	acc = accuracy_score(valid_labels, predict)
+	print("Accuracy: %f" % acc)
+
+	# Create a list of class names
+	class_names = [ cls.name.replace('_', ' ') for cls in dataset]
+	# Saving classifier model
+	classifier_filename_exp = os.path.expanduser(path_svm)
+	with open(classifier_filename_exp, 'wb') as outfile:
+	    pickle.dump((model, class_names), outfile)
+	print('Saved classifier model to file "%s"' % classifier_filename_exp)
+
+def save_feature(path, embs, labels):
+	filename_exp = os.path.expanduser(path)
+	with open(filename_exp, 'wb') as outfile:
+	    pickle.dump((embs, labels), outfile)
+	print('Saved data "%s"' % filename_exp)
+
 if __name__=="__main__":
-	model_path = "../model/20180402-114759/20180402-114759.pb"
-	train_dir = "../pre_dataset/dataset/testset"
-	emb_array, labels = feature_extraction(train_dir, model_path, 10, 160)
+	model_path = "../model/20180402-114759/20180402-114759.pb"			# change following your dir
+	train_dir = "../raw_dataset/dataset/trainset"						# change following your dir
+	valid_dir = "../raw_dataset/dataset/validdir"
+	test_dir = "../raw_dataset/dataset/testset"
+	# get dataset
+	trainset = facenet.get_dataset(train_dir)
+	validset = facenet.get_dataset(valid_dir)
+	testset = facenet.get_dataset(test_dir)
+	batch_size = 10
+	image_size = 160
+
+	# Extract feature
+	emb_trains, train_labels = feature_extraction(trainset, model_path, batch_size, image_size)
+	emb_valids, valid_labels = feature_extraction(validset, model_path, batch_size, image_size)
+	emb_tests, test_labels = feature_extraction(testset, model_path, batch_size, image_size)
+	# Save feature, labels and override old data 
+	save_feature("../raw_dataset/dataset/testset", emb_trains, train_labels)
+	save_feature("../raw_dataset/dataset/testset", emb_valids, valid_labels)
+	save_feature("../raw_dataset/dataset/testset", emb_tests, test_labels)
+
 
 	print("success")
-	print(labels)
+	print(train_labels)
 	print(".................................")
-	print(emb_array.shape)
-
-
-
-
-
-		
+	print(emb_train.shape)
