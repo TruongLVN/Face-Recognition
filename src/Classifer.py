@@ -7,6 +7,7 @@ import math
 import pickle
 import scipy.io as sio
 from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score
 
 
 def feature_extraction(dataset, model_path, batch_size, image_size):
@@ -51,25 +52,61 @@ def feature_extraction(dataset, model_path, batch_size, image_size):
 			    emb_array[start_index:end_index,:] = sess.run(embeddings, feed_dict=feed_dict)
 			return  emb_array, labels
 
-def train_svm(dataset, emb_trains, train_labels, emb_valids, valid_labels,path_svm):
+def svm_training(train_dataset, emb_trains, train_labels, emb_valids, valid_labels, svm_model_path):
 
 	print('Training classifier')
 
 	model = SVC(kernel='linear', probability=True)
-	model.fit(emb_array, labels)
+	model.fit(emb_trains, train_labels)
 
 	# Evaluate model
 	predict = model.predict(emb_valids)
 	acc = accuracy_score(valid_labels, predict)
 	print("Accuracy: %f" % acc)
-
+	print(valid_labels)
+	print(predict)
 	# Create a list of class names
-	class_names = [ cls.name.replace('_', ' ') for cls in dataset]
+	class_names = [ cls.name.replace('_', ' ') for cls in train_dataset]
 	# Saving classifier model
-	classifier_filename_exp = os.path.expanduser(path_svm)
+	classifier_filename_exp = os.path.expanduser(svm_model_path)
 	with open(classifier_filename_exp, 'wb') as outfile:
 	    pickle.dump((model, class_names), outfile)
 	print('Saved classifier model to file "%s"' % classifier_filename_exp)
+
+def threshold_proba(embs, labels, batch_size, svm_model_path):
+	print("Calculating threshold probability")
+	classifier_filename_exp = os.path.expanduser(svm_model_path)
+	with open(classifier_filename_exp, 'rb') as infile:
+		(model, class_name) = pickle.load(infile)
+
+	print('Loaded classifier model from file "%s"' % classifier_filename_exp)
+	predictions = model.predict_proba(emb_array) 
+	best_class_indices = np.argmax(predictions, axis=1)
+	best_class_probabilities = predictions[np.arange(len(best_class_indices)), best_class_indices]
+
+	# Caculate threshold_proba
+	thres_proba = 0
+	nrof_images = len(labels)
+	nrof_batches = int(math.ceil(1.0*nrof_images / batch_size))
+	for i in range(nrof_batches):
+		start_index = i*batch_size
+		end_index = min((i+1)*batch_size, nrof_images)
+		batch_label_true = labels[start_index:end_index]
+		batch_label_predict = best_class_indices[start_index:end_index]
+		batch_proba = best_class_probabilities[start_index:end_index]
+		# Find the max threshold probability of each batch that must give the highest accuracy prediction.
+		thres_proba += np.min(batch_proba[batch_label_true == batch_label_predict])
+	thres_proba /= nrof_batches
+	return thres_proba
+
+def thresh_validate(embs, labels, thres, svm_model_path):
+	classifier_filename_exp = os.path.expanduser(svm_model_path)
+	unknown = max(test_labels) + 1
+	with open(classifier_filename_exp, 'rb') as infile:
+		(model, class_name) = pickle.load(infile)
+	predictions = model.predict_proba(emb_array)
+	best_class_indices = np.argmax(predictions, axis=1)
+	#predict_class_indices = [pred for pred in best_class_indices if pred >= thres else unknown]
 
 def save_feature(path, embs, labels):
 	filename_exp = os.path.expanduser(path)
@@ -78,8 +115,9 @@ def save_feature(path, embs, labels):
 	print('Saved data "%s"' % filename_exp)
 
 if __name__=="__main__":
-	model_path = "../model/20180402-114759/20180402-114759.pb"			# change following your dir
-	train_dir = "../dataset/split_dataset/trainset"						# change following your dir
+	vggface2_model_path = "../model/20180402-114759/20180402-114759.pb"			# change following your dir
+	svm_model_path = "../model/svm/svm.ckpt"
+	train_dir = "../dataset/split_dataset/trainset"								# change following your dir
 	valid_dir = "../dataset/split_dataset/validset"
 	test_dir = "../dataset/split_dataset/testset"
 	# get dataset
@@ -90,14 +128,19 @@ if __name__=="__main__":
 	image_size = 160
 
 	# Extract feature
-	emb_trains, train_labels = feature_extraction(trainset, model_path, batch_size, image_size)
-	emb_valids, valid_labels = feature_extraction(validset, model_path, batch_size, image_size)
-	emb_tests, test_labels = feature_extraction(testset, model_path, batch_size, image_size)
+	emb_trains, train_labels = feature_extraction(trainset, vggface2_model_path, batch_size, image_size)
+	emb_valids, valid_labels = feature_extraction(validset, vggface2_model_path, batch_size, image_size)
+	emb_tests, test_labels = feature_extraction(testset, vggface2_model_path, batch_size, image_size)
+	print ("after extract")
+	print("train_labels", train_labels)
+	print("valid_labels", valid_labels)
+	print("test_labels", test_labels)
 	# Save feature, labels and override old data 
 	save_feature("../dataset/feature_labels/train_emb.dat", emb_trains, train_labels)
 	save_feature("../dataset/feature_labels/valid_emb.dat", emb_valids, valid_labels)
 	save_feature("../dataset/feature_labels/test_emb.dat", emb_tests, test_labels)
 
+	svm_training(trainset, emb_trains, train_labels, emb_valids, valid_labels, svm_model_path)
 
 	print("success")
 	print(train_labels)
