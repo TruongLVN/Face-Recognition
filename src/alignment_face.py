@@ -117,4 +117,4 @@ class PreProcessor:
 
 if __name__ == "__main__":
 	aligner = PreProcessor(model_path="../model/mtcnn")
-	aligner.align("../dataset/raw_dataset", "../dataset/aligned_dataset")
+	aligner.align("../dataset/raw_data_lfw", "../dataset/align_lfw")

@@ -45,7 +45,8 @@ def feature_extraction(dataset, model_path, batch_size, image_size):
 			    start_index = i*batch_size
 			    end_index = min((i+1)*batch_size, nrof_images)
 			    paths_batch = paths[start_index:end_index]		# path of images in batch 
-			    images = facenet.load_data(paths_batch, False, False, image_size)
+
+			    images = facenet.load_data(paths_batch, False, False, image_size)  #images shape [10, 160, 160, 3]
 			    # feed dictionary
 			    feed_dict = { images_placeholder:images, phase_train_placeholder:False }
 			    # extract feature of images
@@ -73,29 +74,35 @@ def svm_training(train_dataset, emb_trains, train_labels, emb_valids, valid_labe
 	    pickle.dump((model, class_names), outfile)
 	print('Saved classifier model to file "%s"' % classifier_filename_exp)
 
-def threshold_proba(embs, labels, batch_size, svm_model_path):
+def get_threshold_proba(embs, labels, batch_size, svm_model_path):
 	print("Calculating threshold probability")
 	classifier_filename_exp = os.path.expanduser(svm_model_path)
 	with open(classifier_filename_exp, 'rb') as infile:
 		(model, class_name) = pickle.load(infile)
 
 	print('Loaded classifier model from file "%s"' % classifier_filename_exp)
-	predictions = model.predict_proba(emb_array) 
+	# shuffle data
+	index = np.array(np.arange(np.shape(labels)[0])) 
+	np.random.shuffle(index)
+	embs_t = embs[index, :]
+	labels_t = labels[index]
+	# match
+	predictions = model.predict_proba(embs_t) 
 	best_class_indices = np.argmax(predictions, axis=1)
 	best_class_probabilities = predictions[np.arange(len(best_class_indices)), best_class_indices]
-
 	# Caculate threshold_proba
 	thres_proba = 0
-	nrof_images = len(labels)
+	nrof_images = len(labels_t)
 	nrof_batches = int(math.ceil(1.0*nrof_images / batch_size))
 	for i in range(nrof_batches):
 		start_index = i*batch_size
 		end_index = min((i+1)*batch_size, nrof_images)
-		batch_label_true = labels[start_index:end_index]
+		batch_label_true = labels_t[start_index:end_index]
 		batch_label_predict = best_class_indices[start_index:end_index]
 		batch_proba = best_class_probabilities[start_index:end_index]
 		# Find the max threshold probability of each batch that must give the highest accuracy prediction.
 		thres_proba += np.min(batch_proba[batch_label_true == batch_label_predict])
+		print ("thres_batch:", np.min(batch_proba[batch_label_true == batch_label_predict]))
 	thres_proba /= nrof_batches
 	return thres_proba
 
@@ -114,6 +121,31 @@ def save_feature(path, embs, labels):
 	    pickle.dump((embs, labels), outfile)
 	print('Saved data "%s"' % filename_exp)
 
+
+def get_thres(emb_array, labels, path_SVM):
+	num_embs = len(labels) 
+	classifier_filename_exp = os.path.expanduser(path_SVM) 
+	thres = np.arange(0, 1, 0.001) 
+	with open(classifier_filename_exp, 'rb') as infile:
+		(model, class_names) = pickle.load(infile) 
+		predictions = model.predict_proba(emb_array) 
+		best_class_indices = np.argmax(predictions, axis=1) 
+		acc_max = 0 
+		best_thres = 0 
+		for i in thres:
+			new_indices = np.zeros(num_embs)
+			acc = 0 
+			for j in range(num_embs):
+				label_true = labels[j] 
+				label_predict = best_class_indices[j] 
+				proba = predictions[j, label_predict] 
+				if (proba >= i) and (label_predict == label_true):
+					acc = acc + 1
+			if acc >= acc_max:
+				acc_max = acc 
+				best_thres = i 
+	return best_thres
+
 if __name__=="__main__":
 	vggface2_model_path = "../model/20180402-114759/20180402-114759.pb"			# change following your dir
 	svm_model_path = "../model/svm/svm.ckpt"
@@ -130,6 +162,7 @@ if __name__=="__main__":
 	# Extract feature
 	emb_trains, train_labels = feature_extraction(trainset, vggface2_model_path, batch_size, image_size)
 	emb_valids, valid_labels = feature_extraction(validset, vggface2_model_path, batch_size, image_size)
+	print ("ákdakldjlasd")
 	emb_tests, test_labels = feature_extraction(testset, vggface2_model_path, batch_size, image_size)
 	print ("after extract")
 	print("train_labels", train_labels)
@@ -142,6 +175,12 @@ if __name__=="__main__":
 
 	svm_training(trainset, emb_trains, train_labels, emb_valids, valid_labels, svm_model_path)
 
+	x = np.concatenate((emb_trains, emb_valids), axis=0)
+	y = np.concatenate((train_labels, valid_labels), axis=0)
+	batch_size = 20
+	# cua tui
+	thres = get_threshold_proba(x, y, batch_size, svm_model_path)
+	print("thres_proba:", thres)
 	print("success")
 	print(train_labels)
 	print(".................................")
