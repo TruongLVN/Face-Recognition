@@ -34,4 +34,4 @@ if __name__ == '__main__':
 	print(".........number of folder correspond to numbers of image............")
 	print(sosoluong)
 	print("so buc anh trung binh", tb)
-	print(np.sum(sosoluong))
+	print("tong so buc anh", np.sum(sosoluong*np.array(soluong)))
