@@ -39,6 +39,7 @@ from tensorflow.python.training import training
 import random
 import re
 from tensorflow.python.platform import gfile
+import csv
 
 def triplet_loss(anchor, positive, negative, alpha):
     """Calculate the triplet loss according to the FaceNet paper
@@ -87,13 +88,30 @@ def center_loss(features, label, alfa, nrof_classes):
     loss = tf.reduce_mean(tf.square(features - centers_batch))
     return loss, centers
 
-def get_image_paths_and_labels(dataset):
+def get_image_paths_and_labels(dataset, path_labels_csv):
     image_paths_flat = []
     labels_flat = []
     for i in range(len(dataset)):
         image_paths_flat += dataset[i].image_paths
-        labels_flat += [i] * len(dataset[i].image_paths)
+        # labels_flat += [i] * len(dataset[i].image_paths)
+        # Todo create labels following csv file
+        # By TruongLVN
+        label = get_labels_from_csv_file(dataset[i].name, path_labels_csv)
+        labels_flat += [label] * len(dataset[i].image_paths)
     return image_paths_flat, labels_flat
+
+# Define by TruongLVN
+def get_labels_from_csv_file(name, path_labels_csv):
+    with open(path_labels_csv) as file:
+        reader = csv.reader(file)
+        mydict = dict(reader)
+    names = list(mydict.keys())
+    labels = list(mydict.values())
+    label = len(names)      # default unknown 
+    for i in range(len(names)):
+        if (name == names[i]):
+            return int(labels[i])
+    return label
 
 def shuffle_examples(image_paths, labels):
     shuffle_list = list(zip(image_paths, labels))

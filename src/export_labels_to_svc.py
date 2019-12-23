@@ -2,7 +2,7 @@ import os
 import numpy as np
 import csv
 
-path_data = "../dataset/align_lfw"
+path_data = "../dataset/split_dataset_lfw/trainset"
 path_file_csv = "../dataset/train.csv"
 if __name__ == '__main__':
 	if not os.path.exists(path_data):

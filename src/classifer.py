@@ -9,8 +9,7 @@ import scipy.io as sio
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
 
-
-def feature_extraction(dataset, model_path, batch_size, image_size):
+def feature_extraction(dataset, model_path, batch_size, image_size, path_labels_csv):
 	with tf.Graph().as_default():
 		gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.5)
 		sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options, log_device_placement=False))
@@ -20,7 +19,7 @@ def feature_extraction(dataset, model_path, batch_size, image_size):
 			for cls in dataset:
 				assert(len(cls.image_paths)>0, 'There must be at least one image for each class in the dataset')
 
-			paths, labels = facenet.get_image_paths_and_labels(dataset)
+			paths, labels = facenet.get_image_paths_and_labels(dataset, path_labels_csv)
 			print('Number of classes: %d' % len(dataset))
 			print('Number of images: %d' % len(paths))
 
@@ -116,11 +115,10 @@ def thresh_validate(embs, labels, thres, svm_model_path):
 	#predict_class_indices = [pred for pred in best_class_indices if pred >= thres else unknown]
 
 def save_feature(path, embs, labels):
-	filename_exp = os.path.expanduser(path)
-	with open(filename_exp, 'wb') as outfile:
+	# filename_exp = os.path.expanduser(path)
+	with open(path, 'w') as outfile:
 	    pickle.dump((embs, labels), outfile)
-	print('Saved data "%s"' % filename_exp)
-
+	print('Saved data "%s"' % path)
 
 def get_thres(emb_array, labels, path_SVM):
 	num_embs = len(labels) 
@@ -147,41 +145,66 @@ def get_thres(emb_array, labels, path_SVM):
 	return best_thres
 
 if __name__=="__main__":
-	vggface2_model_path = "../model/20180402-114759/20180402-114759.pb"			# change following your dir
-	svm_model_path = "../model/svm/svm.ckpt"
-	train_dir = "../dataset/split_dataset/trainset"								# change following your dir
-	valid_dir = "../dataset/split_dataset/validset"
-	test_dir = "../dataset/split_dataset/testset"
-	# get dataset
-	trainset = facenet.get_dataset(train_dir)
-	validset = facenet.get_dataset(valid_dir)
-	testset = facenet.get_dataset(test_dir)
-	batch_size = 10
+	# vggface2_model_path = "../model/20180402-114759/20180402-114759.pb"			# change following your dir
+	# svm_model_path = "../model/svm/svm.ckpt"
+	# train_dir = "../dataset/split_dataset/trainset"								# change following your dir
+	# valid_dir = "../dataset/split_dataset/validset"
+	# test_dir = "../dataset/split_dataset/testset"
+	# path_labels_csv = "../dataset/train.csv"
+	# trainset = facenet.get_dataset(train_dir)
+	# validset = facenet.get_dataset(valid_dir)
+	# testset = facenet.get_dataset(test_dir)
+	# batch_size = 10
+	# image_size = 160
+
+	# # Extract feature
+	# emb_trains, train_labels = feature_extraction(trainset, vggface2_model_path, batch_size, image_size)
+	# emb_valids, valid_labels = feature_extraction(validset, vggface2_model_path, batch_size, image_size, path_labels_csv)
+	# print ("ákdakldjlasd")
+	# emb_tests, test_labels = feature_extraction(testset, vggface2_model_path, batch_size, image_size)
+	# print ("after extract")
+	# print("train_labels", train_labels)
+	# print("valid_labels", valid_labels)
+	# print("test_labels", test_labels)
+	# # Save feature, labels and override old data 
+	# save_feature("../dataset/feature_labels/train_emb.dat", emb_trains, train_labels)
+	# save_feature("../dataset/feature_labels/valid_emb.dat", emb_valids, valid_labels)
+	# save_feature("../dataset/feature_labels/test_emb.dat", emb_tests, test_labels)
+
+	# svm_training(trainset, emb_trains, train_labels, emb_valids, valid_labels, svm_model_path)
+
+	# x = np.concatenate((emb_trains, emb_valids), axis=0)
+	# y = np.concatenate((train_labels, valid_labels), axis=0)
+	# batch_size = 20
+	# # cua tui
+	# thres = get_threshold_proba(x, y, batch_size, svm_model_path)
+	# print("thres_proba:", thres)
+	# print("success")
+	# print(train_labels)
+	# print(".................................")
+	# print(emb_trains.shape)
+
+	##########################################LFW##########################################################3333
+	path_labels_csv = "../dataset/train.csv"
+	facenet_model_path = "../model_lfw/20180402-114759/20180402-114759.pb"
+	batch_size = 50
 	image_size = 160
+	refresh = False
 
+	valid_dir = "../dataset/split_dataset_lfw/validset"
+	emb_trains_save = "../dataset/split_dataset_lfw/save_emb/train_emb.mat"
 	# Extract feature
-	emb_trains, train_labels = feature_extraction(trainset, vggface2_model_path, batch_size, image_size)
-	emb_valids, valid_labels = feature_extraction(validset, vggface2_model_path, batch_size, image_size)
-	print ("ákdakldjlasd")
-	emb_tests, test_labels = feature_extraction(testset, vggface2_model_path, batch_size, image_size)
-	print ("after extract")
-	print("train_labels", train_labels)
-	print("valid_labels", valid_labels)
-	print("test_labels", test_labels)
-	# Save feature, labels and override old data 
-	save_feature("../dataset/feature_labels/train_emb.dat", emb_trains, train_labels)
-	save_feature("../dataset/feature_labels/valid_emb.dat", emb_valids, valid_labels)
-	save_feature("../dataset/feature_labels/test_emb.dat", emb_tests, test_labels)
+	if not os.path.exists(emb_trains_save) or refresh == True:
+		print("Extract again again ne")
+		validset = facenet.get_dataset(valid_dir)
+		emb_valids, valid_labels = feature_extraction(validset, facenet_model_path, batch_size, 
+														image_size, path_labels_csv)
 
-	svm_training(trainset, emb_trains, train_labels, emb_valids, valid_labels, svm_model_path)
+		sio.savemat(emb_trains_save, mdict={"embs": emb_valids, "labels": valid_labels})
 
-	x = np.concatenate((emb_trains, emb_valids), axis=0)
-	y = np.concatenate((train_labels, valid_labels), axis=0)
-	batch_size = 20
-	# cua tui
-	thres = get_threshold_proba(x, y, batch_size, svm_model_path)
-	print("thres_proba:", thres)
-	print("success")
-	print(train_labels)
-	print(".................................")
-	print(emb_trains.shape)
+	valid_data = sio.loadmat(emb_trains_save)
+	valid_embs = valid_data["embs"]
+	valid_labels = valid_data["labels"]
+
+	print (valid_labels[0])
+	print (np.sum(valid_embs[12]))
