@@ -3,7 +3,7 @@ import numpy as np
 import csv
 
 path_data = "../dataset/split_dataset_lfw/trainset"
-path_file_csv = "../dataset/train.csv"
+path_file_csv = "../dataset/split_dataset_lfw/train.csv"
 if __name__ == '__main__':
 	if not os.path.exists(path_data):
 		sys.exit("Invalid path of data set!!")

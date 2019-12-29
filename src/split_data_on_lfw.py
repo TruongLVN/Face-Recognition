@@ -19,7 +19,7 @@ def split_data(path_data_set, path_train, path_test, path_valid):
 	np.random.shuffle(path_names)
 	count_1 = 0
 	count_2 = 0
-	count_3_7 = 0
+	count = 0
 	for path_name in path_names:
 		name = os.path.split(path_name)[1]
 
@@ -31,51 +31,60 @@ def split_data(path_data_set, path_train, path_test, path_valid):
 		# Get path image
 		path_imgs = [os.path.join(path_name, image) for image in os.listdir(path_name)]
 		np.random.shuffle(path_imgs)
-
+		count += len(path_imgs)
 		# Case number of image on each people < 7
 		# Split randomly
-		if(len(path_imgs) == 1):
-			if not os.path.exists(train_name) and count_1 < 2969:
+		if(len(path_imgs) < 3):
+			if not os.path.exists(train_name) and count_1 < 4500:
 				os.makedirs(train_name)
 				copy_image(path_imgs, train_name)
-			if not os.path.exists(test_name) and count_1 >= 3069:
-				os.makedirs(test_name)
-				copy_image(path_imgs, test_name)
-			if not os.path.exists(valid_name) and count_1 >= 2969 and count_1 < 3069:
+
+			if not os.path.exists(valid_name) and count_1 < 4620 and count_1 >= 4500:
 				os.makedirs(valid_name)
 				copy_image(path_imgs, valid_name)
+				
+			if not os.path.exists(test_name) and count_1 >= 4620:
+				os.makedirs(test_name)
+				copy_image(path_imgs, test_name)
 			count_1 += 1
 
-		if(len(path_imgs) == 2):
+		# if(len(path_imgs) == 2):
+		# 	if not os.path.exists(train_name):
+		# 		os.makedirs(train_name)
+		# 		if(count_2 < 650):
+		# 			copy_image(path_imgs, train_name)
+		# 		else:
+		# 			copy_image([path_imgs[0]], train_name)
+					
+		# 	if not os.path.exists(test_name) and count_2 >= 679:
+		# 		os.makedirs(test_name)
+		# 		copy_image([path_imgs[1]], test_name)
+
+		# 	if not os.path.exists(valid_name) and count_2 >= 650 and count_2 < 679:
+		# 		os.makedirs(valid_name)
+		# 		copy_image([path_imgs[1]], valid_name)
+		# 	count_2 += 1
+		if (len(path_imgs) >= 3 and len(path_imgs) < 10):
 			if not os.path.exists(train_name):
 				os.makedirs(train_name)
-				if(count_2 < 500):
-					copy_image(path_imgs, train_name)
-				else:
-					copy_image([path_imgs[0]], train_name)
-			if not os.path.exists(test_name) and count_2 >= 579:
+				copy_image(path_imgs, train_name)
+
+		if (len(path_imgs) >= 10 and len(path_imgs) < 20):
+			if not os.path.exists(train_name):
+				os.makedirs(train_name)
+				copy_image(path_imgs[0:-4], train_name)
+			if not os.path.exists(test_name) and count_2 >= 17:
 				os.makedirs(test_name)
-				copy_image([path_imgs[1]], test_name)
-			if not os.path.exists(valid_name) and count_2 >= 500 and count_2 < 579:
+				copy_image(path_imgs[-4:], test_name)
+
+			if not os.path.exists(valid_name) and count_2 < 17:
 				os.makedirs(valid_name)
-				copy_image([path_imgs[1]], valid_name)
+				copy_image(path_imgs[-4:], valid_name)
 			count_2 += 1
 
-		if (len(path_imgs) > 2 and len(path_imgs) < 8):
-			if not os.path.exists(train_name):
-				os.makedirs(train_name)
-				copy_image(path_imgs[0:-1], train_name)
-			if not os.path.exists(test_name) and count_3_7 >= 85:
-				os.makedirs(test_name)
-				copy_image([path_imgs[-1]], test_name)
-			if not os.path.exists(valid_name) and count_3_7 < 85:
-				os.makedirs(valid_name)
-				copy_image([path_imgs[-1]], valid_name)
-			count_3_7 += 1
-
-		if (len(path_imgs) >= 8):
-			a1 = int(np.ceil(len(path_imgs)*5/8))
-			a2 = int(np.ceil(len(path_imgs)*7/8))
+		if (len(path_imgs) >= 20):
+			a1 = int(np.ceil(len(path_imgs)*5/9))
+			a2 = int(np.ceil(len(path_imgs)*8/9))
 
 			if not os.path.exists(train_name):
 				os.makedirs(train_name)
@@ -83,7 +92,6 @@ def split_data(path_data_set, path_train, path_test, path_valid):
 			if not os.path.exists(test_name):
 				os.makedirs(test_name)
 				copy_image(path_imgs[a1:a2], test_name)
-
 			if not os.path.exists(valid_name):
 				os.makedirs(valid_name)
 				copy_image(path_imgs[a2:], valid_name)
@@ -107,6 +115,7 @@ def split_data(path_data_set, path_train, path_test, path_valid):
 		# 		os.makedirs(valid_name)
 		# 		img_valids = [path_imgs[i] for i in np.where(x>=0.7)[0]]
 		# 		copy_image(img_valids, valid_name)
+	print("Total", count)
 def count_image(paths):
 	names = [os.path.join(paths, name) for name in os.listdir(paths)]
 	count = 0

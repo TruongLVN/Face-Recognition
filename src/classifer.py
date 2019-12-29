@@ -8,6 +8,7 @@ import pickle
 import scipy.io as sio
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score
+from scipy.spatial import distance
 
 def feature_extraction(dataset, model_path, batch_size, image_size, path_labels_csv):
 	with tf.Graph().as_default():
@@ -63,8 +64,6 @@ def svm_training(train_dataset, emb_trains, train_labels, emb_valids, valid_labe
 	predict = model.predict(emb_valids)
 	acc = accuracy_score(valid_labels, predict)
 	print("Accuracy: %f" % acc)
-	print(valid_labels)
-	print(predict)
 	# Create a list of class names
 	class_names = [ cls.name.replace('_', ' ') for cls in train_dataset]
 	# Saving classifier model
@@ -73,37 +72,26 @@ def svm_training(train_dataset, emb_trains, train_labels, emb_valids, valid_labe
 	    pickle.dump((model, class_names), outfile)
 	print('Saved classifier model to file "%s"' % classifier_filename_exp)
 
-def get_threshold_proba(embs, labels, batch_size, svm_model_path):
-	print("Calculating threshold probability")
-	classifier_filename_exp = os.path.expanduser(svm_model_path)
-	with open(classifier_filename_exp, 'rb') as infile:
-		(model, class_name) = pickle.load(infile)
-
-	print('Loaded classifier model from file "%s"' % classifier_filename_exp)
-	# shuffle data
-	index = np.array(np.arange(np.shape(labels)[0])) 
-	np.random.shuffle(index)
-	embs_t = embs[index, :]
-	labels_t = labels[index]
-	# match
-	predictions = model.predict_proba(embs_t) 
-	best_class_indices = np.argmax(predictions, axis=1)
-	best_class_probabilities = predictions[np.arange(len(best_class_indices)), best_class_indices]
-	# Caculate threshold_proba
-	thres_proba = 0
-	nrof_images = len(labels_t)
-	nrof_batches = int(math.ceil(1.0*nrof_images / batch_size))
-	for i in range(nrof_batches):
-		start_index = i*batch_size
-		end_index = min((i+1)*batch_size, nrof_images)
-		batch_label_true = labels_t[start_index:end_index]
-		batch_label_predict = best_class_indices[start_index:end_index]
-		batch_proba = best_class_probabilities[start_index:end_index]
-		# Find the max threshold probability of each batch that must give the highest accuracy prediction.
-		thres_proba += np.min(batch_proba[batch_label_true == batch_label_predict])
-		print ("thres_batch:", np.min(batch_proba[batch_label_true == batch_label_predict]))
-	thres_proba /= nrof_batches
-	return thres_proba
+def thres_dist(train_embs, train_label, test_embs, test_label):
+    thres = np.arange(0.6, 0.9, 0.02)
+    best_acc = 0
+    best_th = 0
+    for th in thres:
+        predict = []
+        for i in range(test_embs.shape[0]):
+            min_index = np.argmin([distance.euclidean(test_embs[i], train_embs[k]) for k in range(train_embs.shape[0])])
+            # print(distance.euclidean(test_embs[i], train_embs[min_index]))
+            if (distance.euclidean(test_embs[i], train_embs[min_index])) >= th:
+                predict.append(5401)
+            else:
+                predict.append(train_label[min_index])
+            # print(min_index , ":", test_label[min_index] ,":", test_label[i])
+        acc = accuracy_score(predict, test_label)
+        if (acc > best_acc):
+            best_acc = acc
+            best_th = th
+    print (best_th, ": ", best_acc)
+    return best_th, best_acc
 
 def thresh_validate(embs, labels, thres, svm_model_path):
 	classifier_filename_exp = os.path.expanduser(svm_model_path)
@@ -114,35 +102,48 @@ def thresh_validate(embs, labels, thres, svm_model_path):
 	best_class_indices = np.argmax(predictions, axis=1)
 	#predict_class_indices = [pred for pred in best_class_indices if pred >= thres else unknown]
 
+# predict one image
+def predict(train_embs, train_labels, emb_test, model_path, thres_dis):
+    min_dis = np.min([distance.euclidean(emb_test, train_embs[k]) for k in range(train_embs.shape[0])])
+    if min_dis >= thres_dis:
+        return train_embs.shape[0]
+    else:
+        classifier_filename_exp = os.path.expanduser(model_path)
+        with open(classifier_filename_exp, 'rb') as infile:
+            (model, class_name) = pickle.load(infile)
+        predictions = model.predict(emb_test)
+        return predictions
+
+def get_unknown(train_embs, train_labels, test_embs, thres_dis):
+    index = []
+    for i in range(test_embs.shape[0]):
+        min_dis = np.min([distance.euclidean(test_embs[i], train_embs[k]) for k in range(train_embs.shape[0])])
+        if min_dis >= thres_dis:
+            index.append(i)
+    return index
+
+def validate_on_test(train_embs, train_labels, emb_tests, label_test, model_path, thres_dis):
+    ## Get unknown
+    index_unknown = get_unknown(train_embs, train_labels, emb_tests, thres_dis)
+    predict = np.zeros(emb_tests.shape[0])
+    predict[index_unknown] = 5401
+    index_known = [k for k in range(emb_tests.shape[0]) if k not in index_unknown]
+
+    emb_test_known = emb_tests[index_known]
+    classifier_filename_exp = os.path.expanduser(model_path)
+    with open(classifier_filename_exp, 'rb') as infile:
+        (model, class_name) = pickle.load(infile)
+    predictions = model.predict(emb_test_known)
+    predict[index_known] = predictions
+    acc = accuracy_score(label_test, predict)
+    print("Accuracy: %f" % acc)
+    return index_unknown, acc
+
 def save_feature(path, embs, labels):
 	# filename_exp = os.path.expanduser(path)
 	with open(path, 'w') as outfile:
 	    pickle.dump((embs, labels), outfile)
 	print('Saved data "%s"' % path)
-
-def get_thres(emb_array, labels, path_SVM):
-	num_embs = len(labels) 
-	classifier_filename_exp = os.path.expanduser(path_SVM) 
-	thres = np.arange(0, 1, 0.001) 
-	with open(classifier_filename_exp, 'rb') as infile:
-		(model, class_names) = pickle.load(infile) 
-		predictions = model.predict_proba(emb_array) 
-		best_class_indices = np.argmax(predictions, axis=1) 
-		acc_max = 0 
-		best_thres = 0 
-		for i in thres:
-			new_indices = np.zeros(num_embs)
-			acc = 0 
-			for j in range(num_embs):
-				label_true = labels[j] 
-				label_predict = best_class_indices[j] 
-				proba = predictions[j, label_predict] 
-				if (proba >= i) and (label_predict == label_true):
-					acc = acc + 1
-			if acc >= acc_max:
-				acc_max = acc 
-				best_thres = i 
-	return best_thres
 
 if __name__=="__main__":
 	# vggface2_model_path = "../model/20180402-114759/20180402-114759.pb"			# change following your dir
@@ -185,26 +186,84 @@ if __name__=="__main__":
 	# print(emb_trains.shape)
 
 	##########################################LFW##########################################################3333
-	path_labels_csv = "../dataset/train.csv"
+	path_labels_csv = "../dataset/split_dataset_lfw/train.csv"
 	facenet_model_path = "../model_lfw/20180402-114759/20180402-114759.pb"
-	batch_size = 50
+	batch_size = 90
 	image_size = 160
 	refresh = False
 
 	valid_dir = "../dataset/split_dataset_lfw/validset"
-	emb_trains_save = "../dataset/split_dataset_lfw/save_emb/train_emb.mat"
+	emb_valid_save = "../dataset/split_dataset_lfw/save_emb/valid_emb.mat"
 	# Extract feature
-	if not os.path.exists(emb_trains_save) or refresh == True:
-		print("Extract again again ne")
+	if not os.path.exists(emb_valid_save) or refresh == True:
+		print("Extract Validate data")
 		validset = facenet.get_dataset(valid_dir)
 		emb_valids, valid_labels = feature_extraction(validset, facenet_model_path, batch_size, 
 														image_size, path_labels_csv)
+		with open(emb_valid_save, 'w'): pass
+		sio.savemat(emb_valid_save, mdict={"embs": emb_valids, "labels": valid_labels})
 
-		sio.savemat(emb_trains_save, mdict={"embs": emb_valids, "labels": valid_labels})
+	test_dir = "../dataset/split_dataset_lfw/testset"
+	emb_test_save = "../dataset/split_dataset_lfw/save_emb/test_emb.mat"
+	# Extract feature
+	if not os.path.exists(emb_test_save) or refresh == True:
+		print("Extract Testing Data")
+		testset = facenet.get_dataset(test_dir)
+		emb_tests, test_labels = feature_extraction(testset, facenet_model_path, batch_size, 
+														image_size, path_labels_csv)
+		with open(emb_test_save, 'w'): pass
+		sio.savemat(emb_test_save, mdict={"embs": emb_tests, "labels": test_labels})
 
-	valid_data = sio.loadmat(emb_trains_save)
+	train_dir = "../dataset/split_dataset_lfw/trainset"
+	emb_trains_save = "../dataset/split_dataset_lfw/save_emb/train_emb.mat"
+	# Extract feature
+	if not os.path.exists(emb_trains_save) or refresh == True:
+		print("Extract Training Data")
+		trainset = facenet.get_dataset(train_dir)
+		emb_trains, train_labels = feature_extraction(trainset, facenet_model_path, batch_size, 
+														image_size, path_labels_csv)
+		with open(emb_trains_save, 'w'): pass
+		sio.savemat(emb_trains_save, mdict={"embs": emb_trains, "labels": train_labels})
+
+	valid_data = sio.loadmat(emb_valid_save)
 	valid_embs = valid_data["embs"]
-	valid_labels = valid_data["labels"]
+	valid_labels = valid_data["labels"][0]
+	print (valid_embs.shape, "  :", len(valid_labels))
 
-	print (valid_labels[0])
-	print (np.sum(valid_embs[12]))
+	test_data = sio.loadmat(emb_test_save)
+	test_embs = test_data["embs"]
+	test_labels = test_data["labels"][0]
+	print (test_embs.shape, "  :", len(test_labels))
+
+	train_data = sio.loadmat(emb_trains_save)
+	train_embs = train_data["embs"]
+	train_labels = train_data["labels"][0]
+	print (train_embs.shape, "  :", len(train_labels))
+
+	svm_model_path = "../dataset/split_dataset_lfw/model_svm/svm.ckpt"
+
+	if not os.path.exists(svm_model_path) or refresh == True:
+		trainset = facenet.get_dataset(train_dir)
+		svm_training(trainset, train_embs, train_labels, valid_embs, valid_labels, svm_model_path)
+
+	# get thres dist
+	batch_size = 1600
+	index = np.array(np.arange(len(train_labels)))
+	np.random.shuffle(index)
+	x = train_embs[index, :]
+	y = train_labels[index]
+	nrof_batches = int(math.ceil(1.0*len(train_labels) / batch_size))
+	thresh = []
+	acc = []
+	for i in range(nrof_batches):
+	    start_index = i*batch_size
+	    end_index = min((i+1)*batch_size, len(train_labels))
+	    best_th, best_acc = best_thres(x[start_index:end_index, :], y[start_index:end_index],
+	                                   valid_embs, valid_labels)
+	    thresh.append(best_th)
+	    acc.append(acc)
+	print ("thresh to find unknown image: ", np.mean(thresh))
+
+	thres_dis = np.mean(thresh)
+
+	index_unknown, acc = validate_on_test(train_embs, train_labels, test_embs, test_labels, svm_model_path, thres_dis = 0.80)

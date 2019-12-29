@@ -35,3 +35,4 @@ if __name__ == '__main__':
 	print(sosoluong)
 	print("so buc anh trung binh", tb)
 	print("tong so buc anh", np.sum(sosoluong*np.array(soluong)))
+	print("tong so buc anh > 20", np.sum(sosoluong[20:]*np.array(soluong[20:])))
