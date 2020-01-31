@@ -11,5 +11,5 @@
 * Note: To get unknown face on test datasets, i using threshold method. First, drawing probability distribution of 2 variables(the euclidean distance between 2 images if they belong to the same face, and the euclidean distance between 2 images if they are on different faces). Then, select the value of the intersection between the two distributions as the threshold.
 
 <p align="center">
-  <img src="https://github.com/TruongLVN/Face-Recognition/blob/master/model/thresh.png" width="700" alt="accessibility text">
+  <img src="https://github.com/TruongLVN/Face-Recognition/blob/master/model/thresh.png" width="300" alt="accessibility text">
 </p>
