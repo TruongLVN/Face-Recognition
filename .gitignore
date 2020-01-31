@@ -1,7 +1,5 @@
 *
 !*.py
-!*.png
-!*.npy
 !.gitignore
 !*/
 model_lfw/
