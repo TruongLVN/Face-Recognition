@@ -116,5 +116,5 @@ class PreProcessor:
         print('Number of successfully aligned images: %d' % nrof_successfully_aligned)
 
 if __name__ == "__main__":
-	aligner = PreProcessor(model_path="../model/mtcnn")
-	aligner.align("../dataset/raw_data_lfw", "../dataset/align_lfw")
+	aligner = PreProcessor(model_path="../model/mtcnn")     # path of mtcnn model
+	aligner.align("../dataset/raw_data_lfw", "../dataset/align_lfw") # path to save align data

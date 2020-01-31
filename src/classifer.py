@@ -258,7 +258,7 @@ if __name__=="__main__":
 	for i in range(nrof_batches):
 	    start_index = i*batch_size
 	    end_index = min((i+1)*batch_size, len(train_labels))
-	    best_th, best_acc = best_thres(x[start_index:end_index, :], y[start_index:end_index],
+	    best_th, best_acc = thres_dist(x[start_index:end_index, :], y[start_index:end_index],
 	                                   valid_embs, valid_labels)
 	    thresh.append(best_th)
 	    acc.append(acc)

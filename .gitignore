@@ -1,0 +1,11 @@
+*
+!*.py
+!*.png
+!*.npy
+!.gitignore
+!*/
+model_lfw/
+dataset/
+data_mcbasic/
+model/svm
+model/20180402-114759
