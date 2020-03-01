@@ -93,14 +93,24 @@ def thres_dist(train_embs, train_label, test_embs, test_label):
     print (best_th, ": ", best_acc)
     return best_th, best_acc
 
-def thresh_validate(embs, labels, thres, svm_model_path):
-	classifier_filename_exp = os.path.expanduser(svm_model_path)
-	unknown = max(test_labels) + 1
-	with open(classifier_filename_exp, 'rb') as infile:
-		(model, class_name) = pickle.load(infile)
-	predictions = model.predict_proba(emb_array)
-	best_class_indices = np.argmax(predictions, axis=1)
-	#predict_class_indices = [pred for pred in best_class_indices if pred >= thres else unknown]
+def train_thres_dist(train_embs, train_labels, valid_embs, valid_labels, batch_size):
+	index = np.array(np.arange(len(train_labels)))
+	np.random.shuffle(index)
+	x = train_embs[index, :]
+	y = train_labels[index]
+	nrof_batches = int(math.ceil(len(train_labels) / batch_size))
+	thresh = []
+	acc = []
+	for i in range(nrof_batches):
+	    start_index = i*batch_size
+	    end_index = min((i+1)*batch_size, len(train_labels))
+	    best_th, best_acc = thres_dist(x[start_index:end_index, :], y[start_index:end_index],
+	                                   valid_embs, valid_labels)
+	    thresh.append(best_th)
+	    acc.append(acc)
+	print ("thresh to find unknown image: ", np.mean(thresh))
+	return np.mean(thresh)
+
 
 # predict one image
 def predict(train_embs, train_labels, emb_test, model_path, thres_dis):
@@ -248,22 +258,7 @@ if __name__=="__main__":
 
 	# get thres dist
 	batch_size = 1600
-	index = np.array(np.arange(len(train_labels)))
-	np.random.shuffle(index)
-	x = train_embs[index, :]
-	y = train_labels[index]
-	nrof_batches = int(math.ceil(1.0*len(train_labels) / batch_size))
-	thresh = []
-	acc = []
-	for i in range(nrof_batches):
-	    start_index = i*batch_size
-	    end_index = min((i+1)*batch_size, len(train_labels))
-	    best_th, best_acc = thres_dist(x[start_index:end_index, :], y[start_index:end_index],
-	                                   valid_embs, valid_labels)
-	    thresh.append(best_th)
-	    acc.append(acc)
-	print ("thresh to find unknown image: ", np.mean(thresh))
 
-	thres_dis = np.mean(thresh)
+	thres_dis = train_thres_dist(train_embs, train_labels, valid_embs, valid_labels, batch_size)
 
-	index_unknown, acc = validate_on_test(train_embs, train_labels, test_embs, test_labels, svm_model_path, thres_dis = 0.80)
+	index_unknown, acc = validate_on_test(train_embs, train_labels, test_embs, test_labels, svm_model_path, thres_dis)
