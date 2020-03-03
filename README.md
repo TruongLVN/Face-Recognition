@@ -44,3 +44,8 @@
 
 ## Running to recognize people on realtime.
 
+
+
+## Reference source
+1. https://github.com/davidsandberg/facenet
+
