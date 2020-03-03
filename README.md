@@ -16,7 +16,7 @@
 
 2. Split datasets into 3 sets: trainset(11127 images), testset(1590 images with 270 unknown images), validset(516 images with 141 unknown images).
 
-		python alignment_face.py
+		python split_data_on_lfw.py
 
 3. Assign lable (0 ~ N-1) to trainset and export svc file.
 
