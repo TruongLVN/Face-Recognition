@@ -1,5 +1,6 @@
 *
 !*.py
+!*.pptx
 !.gitignore
 !*/
 model_lfw/
